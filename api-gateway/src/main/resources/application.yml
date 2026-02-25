@@ -1,0 +1,59 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:3000" # port React/Next.js
+              - "http://localhost:5173" # port Vue/Vite
+              # URL production nanti di sini, misal: "https://mentora.id"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+            maxAge: 3600
+      discovery:
+        locator:
+          enabled: true
+      routes:
+        # User Service - Endpoint publik (Register/Login) TIDAK perlu filter
+        - id: user-service-public
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/register, /api/users/login
+
+        # User Service - Endpoint Private (Harus pakai Token)
+        - id: user-service-private
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - AuthenticationFilter # Memanggil class AuthenticationFilter yang kita buat
+
+        # Content Service - Semuanya butuh Token
+        - id: content-service
+          uri: lb://CONTENT-SERVICE
+          predicates:
+            - Path=/api/posts/**, /api/categories/**, /api/comments/**
+          filters:
+            - AuthenticationFilter
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+secret:
+  key: ${SECRET_JWT_KEY}
