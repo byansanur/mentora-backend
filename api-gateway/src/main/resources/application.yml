@@ -57,3 +57,8 @@ eureka:
 
 secret:
   key: ${SECRET_JWT_KEY}
+
+logging:
+  level:
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
