@@ -12,7 +12,7 @@ Sistem ini terdiri dari beberapa service independen yang berkomunikasi satu sama
 
 ```mermaid
 graph TD
-    Client[Client App/Web] -->|HTTP Request| Gateway[API Gateway]
+    Client[Client App/Web] -->|HTTP & WebSocket| Gateway[API Gateway]
     
     subgraph Infrastructure
         Discovery[Discovery Service]
@@ -27,6 +27,7 @@ graph TD
     
     Gateway -->|Route /users/**| User
     Gateway -->|Route /content/**| Content
+    Gateway -->|Route /ws/** - WebSocket| Comm
     
     User -.->|Register/Heartbeat| Discovery
     Content -.->|Register/Heartbeat| Discovery
@@ -44,7 +45,7 @@ Proyek ini mengadopsi pola **Database per Service**. Setiap microservice memilik
 
 Pola ini memberikan keuntungan sebagai berikut:
 - **Loose Coupling**: Perubahan skema database di satu service tidak akan secara langsung memengaruhi service lain.
-- **Fleksibilitas Teknologi**: Setiap service bebas memilih jenis database yang paling sesuai dengan kebutuhannya (misalnya, SQL untuk data transaksional dan NoSQL untuk data tidak terstruktur).
+- **Fleksibilitas Teknologi**: Setiap service bebas memilih jenis database yang paling sesuai dengan kebutuhannya.
 
 ```mermaid
 graph TD
@@ -60,9 +61,17 @@ graph TD
         ContentService -- Manages --> ContentDB
     end
 
+    subgraph CommDomain ["Communication Service Domain"]
+        CommService[Communication Service]
+        CommDB[("Comm DB (MySQL)")]
+        CommService -- Manages --> CommDB
+    end
+
     UserService -->|API Call| ContentService
+    UserService -->|API Call| CommService
+    
     ContentService -.-> |<font color=red>X NO DIRECT ACCESS X</font>| UserDB
-    UserService -.-> |<font color=red>X NO DIRECT ACCESS X</font>| ContentDB
+    CommService -.-> |<font color=red>X NO DIRECT ACCESS X</font>| UserDB
 ```
 
 ## 3. Teknologi yang Digunakan
@@ -72,6 +81,7 @@ graph TD
 - **Database**:
     - **User Service**: MySQL
     - **Content Service**: MySQL
+    - **Communication Service**: MySQL
 - **Messaging**: Apache Kafka
 - **Infrastruktur**: Docker
 - **Build Tool**: Maven / Gradle (sesuaikan dengan proyek Anda)
@@ -142,7 +152,7 @@ Berikut adalah penjelasan singkat untuk setiap service:
     Berperan sebagai Eureka Server atau Consul untuk service registration and discovery. Semua microservice lain akan mendaftarkan diri ke service ini.
 
 -   `api-gateway`:
-    Menggunakan Spring Cloud Gateway. Menerapkan routing ke service lain, serta menangani otentikasi, rate limiting, dan logging terpusat.
+    Menggunakan Spring Cloud Gateway. Menerapkan routing ke service lain, serta menangani otentikasi, rate limiting, dan logging terpusat. Juga menangani upgrade koneksi ke WebSocket untuk `communication-service`.
 
 -   `user-service`:
     Bertanggung jawab untuk semua hal yang berkaitan dengan pengguna, seperti registrasi, login, profil pengguna, dan otentikasi/autorisasi. Mengelola datanya sendiri di database MySQL.
@@ -151,10 +161,10 @@ Berikut adalah penjelasan singkat untuk setiap service:
     Mengelola semua konten dalam platform, seperti materi kursus, artikel, video, dan lain-lain. Menggunakan database MySQL.
 
 -   `communication-service`:
-    Menangani pengiriman notifikasi, email, atau pesan real-time kepada pengguna. Kemungkinan besar terintegrasi dengan Kafka untuk menerima event.
+    Menangani pengiriman notifikasi, email, chat, dan pesan real-time. Menggunakan WebSocket untuk interaksi real-time dan Kafka untuk event processing. Menyimpan riwayat chat dan log notifikasi di database MySQL.
 
 -   `mentora-common`:
     Sebuah modul pustaka bersama (shared library) yang berisi DTO (Data Transfer Objects), kelas utilitas, atau konfigurasi umum yang digunakan oleh lebih dari satu service.
 
 ---
-*README ini dibuat secara otomatis berdasarkan struktur proyek. Silakan sesuaikan dan lengkapi detail yang kurang.*
+*Mentora tech team*
